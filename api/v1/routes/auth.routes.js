@@ -2,6 +2,7 @@ import { Router } from "express";
 const router = Router();
 import {
   loginController,
+  raiseStudentInfoRequest,
   registerNewUserController,
   resendOtpController,
   validateRefreshTokenAndGenerateNewAuthToken,
@@ -39,6 +40,8 @@ router.get(
   authTokenGeneratorValidator,
   validateRefreshTokenAndGenerateNewAuthToken
 );
+
+router.post("/raiseStudentInfoRequest", raiseStudentInfoRequest);
 
 router.post("/resend-otp", loginRequestValidator, resendOtpController);
 
