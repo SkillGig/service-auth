@@ -1,6 +1,7 @@
 // auth.controller.js
 import {
   addRefreshToken,
+  checkIfStudentHasAnOngoingRequest,
   checkIfUserAlreadyExists,
   fetchSecret,
   fetchStudentDetails,
@@ -9,6 +10,8 @@ import {
   findOrgCode,
   findStudentWithOrgCodeAndStudentId,
   findUserWithOrgCodeAndStudentId,
+  generateNewUserRequest,
+  insertIntoUserRaisedRequestDetails,
   retrieveRefreshTokenGeneratedForUserByPlatform,
   validateOtp,
 } from "../services/auth.query.js";
@@ -26,6 +29,8 @@ import {
   generateAndTriggerOtpToRegisteredMobileNumber,
 } from "../services/auth.service.js";
 import { verifyPassword } from "../helpers/crypt.helper.js";
+import bluebird from "bluebird";
+const { Promise } = bluebird.Promise;
 
 // // controller to create the user -> generate the OTP
 // export const createUserWithMagicLinkAndGenerateOtp = async (req, res) => {
@@ -171,7 +176,20 @@ export const registerNewUserController = async (req, res) => {
       });
     }
     const studentDetails = await fetchStudentDetails(orgCode, studentId);
-    console.log(studentDetails, "the student details are here");
+    const ongoingRequestCheck = await checkIfStudentHasAnOngoingRequest(
+      studentId,
+      studentDetails[0]?.orgId
+    );
+    if (ongoingRequestCheck.length) {
+      return sendApiError(
+        res,
+        {
+          notifyUser:
+            "Already a request is in progress. Please wait until it to be closed.",
+        },
+        200
+      );
+    }
     if (studentDetails[0]?.studentDbId) {
       const userResult = await createUserAndOnboard({
         studentUniqueId: `${studentDetails[0]?.orgCode}-${studentId}`,
@@ -378,4 +396,53 @@ export const adminLoginController = async (req, res) => {
       500
     );
   }
+};
+
+export const raiseStudentInfoRequest = async (req, res) => {
+  const orgId = req.body.orgId;
+  const studentId = req.body.studentId;
+  const platform = req.headers["platform"];
+  const dataToUpdate = req.body.dataToUpdate;
+
+  try {
+    const ongoingRequestCheck = await checkIfStudentHasAnOngoingRequest(
+      studentId,
+      orgId
+    );
+    if (ongoingRequestCheck.length) {
+      return sendApiError(
+        res,
+        {
+          notifyUser:
+            "Already a request is in progress. Please wait until it to be closed.",
+        },
+        200
+      );
+    } else {
+      const newRequestId = await generateNewUserRequest(studentId, orgId);
+      if (newRequestId) {
+        await Promise.map(dataToUpdate, async (data) => {
+          const { fieldName, oldValue, newValue } = data;
+          await insertIntoUserRaisedRequestDetails(
+            newRequestId,
+            fieldName,
+            oldValue,
+            newValue
+          );
+        });
+        return sendApiResponse(res, {
+          notifyUser: "You have successfully raised a request.",
+        });
+      } else {
+        return sendApiError(
+          res,
+          {
+            notifyUser:
+              "Something went wrong in raising a new request. Please try again after sometime!",
+          },
+          200
+        );
+      }
+    }
+  } catch (err) {}
 };

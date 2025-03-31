@@ -420,3 +420,95 @@ export const fetchUserPassword = async (email) => {
     return err;
   }
 };
+
+export const checkIfStudentHasAnOngoingRequest = async (studentId, orgId) => {
+  logger.debug(
+    studentId,
+    orgId,
+    `data being received: [checkIfStudentHasAnOngoingRequest]`
+  );
+
+  try {
+    const queryString = `SELECT ur.id as requestId
+    FROM user_requests ur
+             INNER JOIN student_info si ON ur.student_id = si.id
+             INNER JOIN organizations o ON si.org_code = o.org_short_code
+    WHERE si.student_id = ?
+      AND ur.org_id = ? AND ur.status = 'pending';`;
+    const result = await query(queryString, [studentId, orgId]);
+    return result;
+  } catch (err) {
+    logger.error(
+      err,
+      `error being received: [checkIfStudentHasAnOngoingRequest]
+    `
+    );
+    return err;
+  }
+};
+
+export const generateNewUserRequest = async (studentId, orgId) => {
+  logger.debug(
+    studentId,
+    orgId,
+    `data being received: [generateNewUserRequest]`
+  );
+
+  try {
+    const studentIdDetails = await fetchStudentIdUsingStudentOrgId(studentId);
+    const queryString = `INSERT INTO user_requests (student_id, org_id) VALUES (?, ?);`;
+    const result = await query(queryString, [
+      studentIdDetails[0].studentId,
+      orgId,
+    ]);
+    return result?.insertId ?? false;
+  } catch (err) {
+    logger.error(err, `error being received: [generateNewUserRequest]`);
+    return err;
+  }
+};
+
+export const fetchStudentIdUsingStudentOrgId = async (studentId) => {
+  try {
+    const queryString = `SELECT id AS studentId FROM student_info WHERE student_id = ?`;
+    const result = await query(queryString, [studentId]);
+    return result;
+  } catch (err) {
+    logger.error(
+      err,
+      `error being received: [fetchStudentIdUsingStudentOrgId]`
+    );
+    return err;
+  }
+};
+
+export const insertIntoUserRaisedRequestDetails = async (
+  requestId,
+  fieldName,
+  oldName,
+  newValue
+) => {
+  logger.debug(
+    requestId,
+    fieldName,
+    oldName,
+    newValue,
+    `data being received: [insertIntoUserRaisedRequestDetails]`
+  );
+  try {
+    const queryString = `INSERT INTO user_raised_request_details (request_id, field_name, old_value, new_value) VALUES (?, ?, ?, ?);`;
+    const result = await query(queryString, [
+      requestId,
+      fieldName,
+      oldName,
+      newValue,
+    ]);
+    return result;
+  } catch (err) {
+    logger.error(
+      err,
+      `error being received: [insertIntoUserRaisedRequestDetails]`
+    );
+    return err;
+  }
+};
