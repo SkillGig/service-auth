@@ -11,6 +11,29 @@ import logger from "./config/logger.js";
 app.use(bodyParse.json({ limit: "50mb" }));
 app.use(bodyParse.urlencoded({ extended: false }));
 
+// Set CORS and cache control headers
+app.use((req, res, next) => {
+  // CORS headers
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+  );
+
+  // Cache control headers
+  res.header("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  res.header("Expires", "0");
+  res.header("Pragma", "no-cache");
+
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  next();
+});
+
 app.use("/auth/network", NetworkRoutes);
 app.use("/auth", AuthRoutes);
 

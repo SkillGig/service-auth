@@ -1,15 +1,20 @@
 import nconf from "nconf";
 import path from "path";
+import { existsSync } from "fs";
+import { fileURLToPath } from "url";
 
 const getConfigFile = (environment) => {
-  const __dirname = path.dirname(new URL(import.meta.url).pathname);
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
   const configDir = path.join(__dirname, environment);
-  return path.join(configDir, "keys.json");
+  const configFile = path.join(configDir, "keys.json");
+  return configFile;
 };
 
 export const readFileToNconf = () => {
   const environment = process.env.NODE_ENV || "development";
   const configFile = getConfigFile(environment);
+  nconf.clear();
 
   nconf.file({ file: configFile });
   nconf.env();
