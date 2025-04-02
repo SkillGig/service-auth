@@ -1,6 +1,5 @@
 import nconf from "nconf";
 import path from "path";
-import { existsSync } from "fs";
 import { fileURLToPath } from "url";
 
 const getConfigFile = (environment) => {
