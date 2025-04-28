@@ -245,20 +245,32 @@ export const findStudentWithOrgCodeAndStudentId = async (
   }
 };
 
-export const storeGeneratedOtpForUser = async (otp, userId, platform) => {
+export const storeGeneratedOtpForUser = async (
+  otp,
+  userId,
+  platform,
+  phone,
+  type
+) => {
   logger.debug(
     `otp: ${otp}, userId: ${userId}, platform: ${platform}  [storeGeneratedOtpForUser]`
   );
 
-  const queryString = `INSERT INTO users_otp (user_id, otp_generated, platform) VALUES (?, ?, ?);`;
+  const queryString = `INSERT INTO users_otp (user_id, otp_generated, platform, phone, type) VALUES (?, ?, ?, ?, ?);`;
 
   try {
-    const result = await query(queryString, [userId, otp, platform]);
+    const result = await query(queryString, [
+      userId,
+      otp,
+      platform,
+      phone,
+      type,
+    ]);
     return result;
   } catch (err) {
     logger.error(
       err,
-      `Error in storing the generated OTP , details: ${otp} ${userId} [storeGeneratedOtpForUser]`
+      `Error in storing the generated OTP , details: ${otp} ${userId} ${phone} ${type} [storeGeneratedOtpForUser]`
     );
     throw err;
   }
@@ -321,21 +333,21 @@ export const checkIfUserAlreadyExists = async (orgCode, studentId) => {
   }
 };
 
-export const validateOtp = async (userId, otp, platform) => {
+export const validateOtp = async (otpId, otp, platform) => {
   logger.debug(
-    `userId: ${userId}, otp: ${otp}, platform: ${platform}  [validateOtp]`
+    `otpId: ${otpId}, otp: ${otp}, platform: ${platform}  [validateOtp]`
   );
 
-  const queryString = `SELECT id, user_id as userId
+  const queryString = `SELECT id, user_id as userId, phone, type
     FROM users_otp
-    WHERE user_id = ?
+    WHERE id = ?
     AND otp_generated = ?
     AND is_verified = 0
     AND platform = ?
     AND created_at >= NOW() - INTERVAL 15 MINUTE;`;
 
   try {
-    const result = await query(queryString, [userId, otp, platform]);
+    const result = await query(queryString, [otpId, otp, platform]);
     if (result?.length) {
       const queryString = `UPDATE users_otp set is_verified = 1 WHERE id = ?`;
       await query(queryString, [result[0].id]);
@@ -429,13 +441,13 @@ export const checkIfStudentHasAnOngoingRequest = async (studentId, orgId) => {
   );
 
   try {
-    const queryString = `SELECT ur.id as requestId
+    const queryString = `SELECT ur.id as requestId, ur.status as status
     FROM user_requests ur
              INNER JOIN student_info si ON ur.student_id = si.id
              INNER JOIN organizations o ON si.org_code = o.org_short_code
     WHERE si.student_id = ?
-      AND ur.org_id = ? AND ur.status = 'pending';`;
-    const result = await query(queryString, [studentId, orgId]);
+      AND ur.org_id = ?`;
+    const [result] = await query(queryString, [studentId, orgId]);
     return result;
   } catch (err) {
     logger.error(

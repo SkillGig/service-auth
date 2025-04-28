@@ -32,11 +32,9 @@ export const loginRequestValidator = [
 ];
 
 export const validateOTPRequest = [
-  body("userId")
-    .isInt()
-    .withMessage("User ID must be an integer")
+  body("otpId")
     .notEmpty()
-    .withMessage("User ID is required"),
+    .withMessage("OTP_ID is required"),
 
   body("otp")
     .isNumeric()

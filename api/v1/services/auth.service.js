@@ -107,16 +107,22 @@ export const generateMagicLink = async ({ studentId, userId }) => {
     logger.info(dbResult, "Magic link generated and stored successfully");
 
     if (dbResult?.insertId) {
-      return await updateHashId({
+      const result = await updateHashId({
         hashId: dbResult?.insertId,
         studentId,
         userId,
-      }).then(() => ({
-        message: "success",
-        result: {
-          hashId: dbResult.insertId,
-        },
-      }));
+      });
+
+      logger.debug(result, `data being received: [updateHashId/result]`);
+
+      if (result) {
+        return {
+          message: "success",
+          result: {
+            hashId: dbResult.insertId,
+          },
+        };
+      }
     }
   } catch (err) {
     logger.error(err, "Error in generating magic link");
@@ -125,15 +131,25 @@ export const generateMagicLink = async ({ studentId, userId }) => {
 };
 
 export const generateAndTriggerOtpToRegisteredMobileNumber = async (
-  userDetails, platform
+  userId,
+  platform,
+  phone,
+  type
 ) => {
   const otp = generateOtpDigits();
 
   try {
     // await triggerOtpToRegisteredMobileNumber(otp, userDetails);
-    await storeGeneratedOtpForUser(otp, userDetails.userId, platform);
+    const result = await storeGeneratedOtpForUser(
+      otp,
+      userId,
+      platform,
+      phone,
+      type
+    );
     return {
       generatedOtp: otp,
+      otpId: result.insertId,
     };
   } catch (err) {
     logger.error(err, "Error in generating and triggering OTP");

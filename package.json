@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "nodemon app.js | bunyan"
+    "start": "NODE_ENV=development nodemon app.js | bunyan"
   },
   "keywords": [],
   "author": "",

@@ -3,6 +3,7 @@ import {
   addRefreshToken,
   checkIfStudentHasAnOngoingRequest,
   checkIfUserAlreadyExists,
+  fetchOrgIdUsingOrgCode,
   fetchSecret,
   fetchStudentDetails,
   fetchStudentInfo,
@@ -121,36 +122,54 @@ export const loginController = async (req, res) => {
 
     if (userResult?.length) {
       //call the otp service
-      const otp = await generateAndTriggerOtpToRegisteredMobileNumber(
-        userResult[0],
-        platform
+      const { userId, userPhone } = userResult[0];
+      const otpResult = await generateAndTriggerOtpToRegisteredMobileNumber(
+        userId,
+        platform,
+        userPhone,
+        "login"
       );
-      logger.debug(otp, "the OTP is here");
+      logger.debug(otpResult, "the OTP is here");
       const userResponse = {
         notifyUser:
           "We have Successfully sent OTP to the registered mobile number!",
-        userId: userResult[0]?.userId,
+        otpId: otpResult?.otpId,
       };
       if (process.env.NODE_ENV === "development") {
-        userResponse.generatedOtp = otp.generatedOtp;
+        userResponse.generatedOtp = otpResult.generatedOtp;
       }
       return sendApiResponse(res, userResponse);
-    }
-    const studentResult = await findStudentWithOrgCodeAndStudentId(
-      orgCode,
-      studentId
-    );
+    } else {
+      const studentResult = await findStudentWithOrgCodeAndStudentId(
+        orgCode,
+        studentId
+      );
 
-    if (studentResult?.length) {
-      return sendApiResponse(res, {
-        isNewUser: true,
-        studentDetails: studentResult[0],
-      });
+      if (studentResult?.length) {
+        const { phone } = studentResult[0];
+        const otpResult = await generateAndTriggerOtpToRegisteredMobileNumber(
+          null,
+          platform,
+          phone,
+          "register"
+        );
+        logger.debug(otpResult, "the OTP is here");
+        const userResponse = {
+          notifyUser:
+            "We have Successfully sent OTP to the registered mobile number!",
+          otpId: otpResult?.otpId,
+        };
+        if (process.env.NODE_ENV === "development") {
+          userResponse.generatedOtp = otpResult.generatedOtp;
+        }
+        return sendApiResponse(res, userResponse);
+      } else {
+        return sendApiError(
+          res,
+          "Opps! We have not found your details. Please try again!"
+        );
+      }
     }
-    return sendApiError(
-      res,
-      "Opps! We have not found your details. Please try again!"
-    );
   } catch (err) {
     logger.error(err, "Error in finding the user [loginController]");
     return sendApiError(
@@ -171,7 +190,7 @@ export const registerNewUserController = async (req, res) => {
     const userResult = await checkIfUserAlreadyExists(orgCode, studentId);
     if (userResult?.length && userResult[0].userId) {
       return sendApiError(res, {
-        notifyUser: "User Already Exists!",
+        notifyUser: "User Already Exists! Please login",
         action: "login",
       });
     }
@@ -180,7 +199,7 @@ export const registerNewUserController = async (req, res) => {
       studentId,
       studentDetails[0]?.orgId
     );
-    if (ongoingRequestCheck.length) {
+    if (ongoingRequestCheck?.length) {
       return sendApiError(
         res,
         {
@@ -205,21 +224,24 @@ export const registerNewUserController = async (req, res) => {
       });
 
       if (userResult?.userId) {
-        //call the otp service
-        const otp = await generateAndTriggerOtpToRegisteredMobileNumber(
-          userResult,
-          platform
-        );
-        logger.debug(otp, "the OTP is here");
-        const userResponse = {
-          notifyUser:
-            "User Created Successfully. We have Successfully sent OTP to the registered mobile number!",
-          userId: userResult?.userId,
+        //create the token and send the token back
+        const tokenPayload = {
+          userId: userResult.userId,
+          role: "USER",
+          platform,
         };
-        if (process.env.NODE_ENV === "development") {
-          userResponse.generatedOtp = otp.generatedOtp;
-        }
-        return sendApiResponse(res, userResponse);
+        const authToken = generateAuthToken(tokenPayload);
+        const refreshToken = generateRefreshToken(tokenPayload);
+        await addRefreshToken(userResult.userId, refreshToken, platform);
+        res.set("Authorization", authToken);
+        res.set("x-refresh-token", refreshToken);
+        return sendApiResponse(
+          res,
+          {
+            notifyUser: "Successfully registered!",
+          },
+          200
+        );
       }
       throw new Error("Something went wrong in creating a new user");
     }
@@ -235,14 +257,16 @@ export const registerNewUserController = async (req, res) => {
 };
 
 export const verifyUserOtpController = async (req, res) => {
-  const userId = req.body.userId;
+  const otpId = req.body.otpId;
   const otp = req.body.otp;
   const platform = req.headers["platform"];
+  const orgCode = req.body.orgCode;
+  const studentId = req.body.studentId;
 
   try {
-    const userOtpResult = await validateOtp(userId, otp, platform);
+    const userOtpResult = await validateOtp(otpId, otp, platform);
 
-    if (userOtpResult?.length) {
+    if (userOtpResult?.length && userOtpResult[0].type === "login") {
       const tokenPayload = {
         userId: userOtpResult[0].userId,
         role: "USER",
@@ -250,10 +274,29 @@ export const verifyUserOtpController = async (req, res) => {
       };
       const authToken = generateAuthToken(tokenPayload);
       const refreshToken = generateRefreshToken(tokenPayload);
-      await addRefreshToken(userId, refreshToken, platform);
+      await addRefreshToken(userOtpResult[0].userId, refreshToken, platform);
       res.set("Authorization", authToken);
       res.set("x-refresh-token", refreshToken);
       return sendApiResponse(res, null, 200);
+    } else if (userOtpResult?.length && userOtpResult[0].type === "register") {
+      const studentResult = await findStudentWithOrgCodeAndStudentId(
+        orgCode,
+        studentId
+      );
+
+      const orgDetails = await fetchOrgIdUsingOrgCode(orgCode);
+      const ongoingRequestDetails = await checkIfStudentHasAnOngoingRequest(
+        studentId,
+        orgDetails[0]?.orgId
+      );
+
+      if (studentResult?.length) {
+        return sendApiResponse(res, {
+          isNewUser: true,
+          studentDetails: studentResult[0],
+          ongoingRequestDetails,
+        });
+      }
     }
     return sendApiError(res, "Invalid OTP!");
   } catch (err) {
@@ -329,25 +372,54 @@ export const resendOtpController = async (req, res) => {
 
     if (userResult?.length) {
       //call the otp service
-      const otp = await generateAndTriggerOtpToRegisteredMobileNumber(
-        userResult[0],
-        platform
+      const { userId, userPhone } = userResult[0];
+      const otpResult = await generateAndTriggerOtpToRegisteredMobileNumber(
+        userId,
+        platform,
+        userPhone,
+        "login"
       );
-      logger.debug(otp, "the OTP is here");
+      logger.debug(otpResult, "the OTP is here");
       const userResponse = {
         notifyUser:
           "We have Successfully sent OTP to the registered mobile number!",
-        userId: userResult[0]?.userId,
+        otpId: otpResult?.otpId,
       };
       if (process.env.NODE_ENV === "development") {
-        userResponse.generatedOtp = otp.generatedOtp;
+        userResponse.generatedOtp = otpResult.generatedOtp;
       }
       return sendApiResponse(res, userResponse);
+    } else {
+      const studentResult = await findStudentWithOrgCodeAndStudentId(
+        orgCode,
+        studentId
+      );
+
+      if (studentResult?.length) {
+        const { phone } = studentResult[0];
+        const otpResult = await generateAndTriggerOtpToRegisteredMobileNumber(
+          null,
+          platform,
+          phone,
+          "register"
+        );
+        logger.debug(otpResult, "the OTP is here");
+        const userResponse = {
+          notifyUser:
+            "We have Successfully sent OTP to the registered mobile number!",
+          otpId: otpResult?.otpId,
+        };
+        if (process.env.NODE_ENV === "development") {
+          userResponse.generatedOtp = otpResult.generatedOtp;
+        }
+        return sendApiResponse(res, userResponse);
+      } else {
+        return sendApiError(res, "Invalid request! No user found");
+      }
     }
-    throw "Invalid request! No user found";
   } catch (err) {
     logger.error(err, "Error in resending OTP");
-    return sendApiError(res, "Error in resending OTP", 500);
+    return sendApiError(res, "Error in resending OTP. Please try again", 500);
   }
 };
 
@@ -401,7 +473,6 @@ export const adminLoginController = async (req, res) => {
 export const raiseStudentInfoRequest = async (req, res) => {
   const orgId = req.body.orgId;
   const studentId = req.body.studentId;
-  const platform = req.headers["platform"];
   const dataToUpdate = req.body.dataToUpdate;
 
   try {
