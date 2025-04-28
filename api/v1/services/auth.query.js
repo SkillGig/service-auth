@@ -441,12 +441,17 @@ export const checkIfStudentHasAnOngoingRequest = async (studentId, orgId) => {
   );
 
   try {
-    const queryString = `SELECT ur.id as requestId, ur.status as status
+    const queryString = `SELECT ur.id     as requestId,
+    ur.status as status,
+    GROUP_CONCAT(JSON_OBJECT('fieldName', urrd.field_name, 'oldValue', urrd.old_value, 'newValue', urrd.new_value,
+                             'fieldStatus', urrd.status))
     FROM user_requests ur
-             INNER JOIN student_info si ON ur.student_id = si.id
-             INNER JOIN organizations o ON si.org_code = o.org_short_code
+          INNER JOIN student_info si ON ur.student_id = si.id
+          INNER JOIN organizations o ON si.org_code = o.org_short_code
+          INNER JOIN user_raised_request_details urrd ON ur.id = urrd.request_id
     WHERE si.student_id = ?
-      AND ur.org_id = ?`;
+    AND ur.org_id = ?
+    group by ur.id;`;
     const [result] = await query(queryString, [studentId, orgId]);
     return result;
   } catch (err) {
