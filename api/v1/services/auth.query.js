@@ -529,3 +529,16 @@ export const insertIntoUserRaisedRequestDetails = async (
     return err;
   }
 };
+
+export const fetchCoachPassword = async (email) => {
+  logger.debug(email, `data being received: [fetchCoachPassword]`);
+
+  try {
+    const queryString = `SELECT id, password FROM coaches WHERE email = ?;`;
+    const result = await query(queryString, [email]);
+    return result;
+  } catch (err) {
+    logger.error(err, `error being received: [fetchCoachPassword]`);
+    return err;
+  }
+};

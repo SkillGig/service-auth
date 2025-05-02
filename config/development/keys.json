@@ -2,12 +2,16 @@
   "accessTokenSecret": "YzlmZTViYmNlNGIyZTYwYTAzMmVkZjlkYTkwYmM1Njg=",
   "refreshTokenSecret": "YWZjZmM2ZTIxZjFhZWM3MGFiMjM5MjRlYzdhOGY5YTFjOGQyZTI3ZGI1YTZkNTk4N2YzMDQyYWI3NGI1NWYzNQ==",
   "accessTokenSecretForAdmin": "NDhiZmU3ZDhkN2U1N2NmMjI5MTQ5ZGNmODBjYTc0OTg=",
+  "accessTokenSecretForCoach": "ZGY0MTQ4ZTZhZWNjNjBiNTVjN2Q3NjJmYzRkYjA3NmU=",
   "jwtExpirations": {
     "accessTokenExpiresIn": "15m",
     "refreshTokenExpiresIn": "7d"
   },
   "adminJwtExpirations": {
     "accessTokenExpiresIn": "1d"
+  },
+  "coachJwtExpirations": {
+    "accessTokenExpiresIn": "7d"
   },
   "dbConfig": {
     "host": "lms-stage.cri6wqugy0ti.ap-south-1.rds.amazonaws.com",
