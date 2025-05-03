@@ -45,6 +45,15 @@ export const generateAuthTokenForAdminAccess = (payload) => {
   return token;
 };
 
+export const generateAuthTokenForCoachAccess = (payload) => {
+  const secret = nconf.get("accessTokenSecretForCoach");
+  const expiration = nconf.get("coachJwtExpirations");
+  const token = jwt.sign(payload, secret, {
+    expiresIn: expiration.accessTokenExpiresIn,
+  });
+  return token;
+};
+
 export const generateOtpDigits = () => {
   return Math.floor(1000 + Math.random() * 9000).toString();
 };

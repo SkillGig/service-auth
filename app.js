@@ -2,6 +2,7 @@ import express from "express";
 import bodyParse from "body-parser";
 import AuthRoutes from "./api/v1/routes/auth.routes.js";
 import NetworkRoutes from "./api/v1/routes/network.routes.js";
+import CoachRoutes from "./api/v1/routes/coach.routes.js";
 
 const app = express();
 const port = 4001;
@@ -36,6 +37,7 @@ app.use((req, res, next) => {
 });
 
 app.use("/auth/network", NetworkRoutes);
+app.use("/auth/coach", CoachRoutes);
 app.use("/auth", AuthRoutes);
 
 app.use("/", (req, res) => {

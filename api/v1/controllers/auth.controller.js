@@ -3,6 +3,7 @@ import {
   addRefreshToken,
   checkIfStudentHasAnOngoingRequest,
   checkIfUserAlreadyExists,
+  fetchCoachPassword,
   fetchOrgIdUsingOrgCode,
   fetchSecret,
   fetchStudentDetails,
@@ -20,6 +21,7 @@ import logger from "../../../config/logger.js";
 import {
   generateAuthToken,
   generateAuthTokenForAdminAccess,
+  generateAuthTokenForCoachAccess,
   generateRefreshToken,
   sendApiError,
   sendApiResponse,
@@ -516,4 +518,52 @@ export const raiseStudentInfoRequest = async (req, res) => {
       }
     }
   } catch (err) {}
+};
+
+
+export const coachLoginController = async (req, res) => {
+  const email = req.body.email;
+  const password = req.body.password;
+
+  logger.debug(email, password, `data being received:  [coachLoginController]`);
+  try {
+    const userPasswordRegistered = await fetchCoachPassword(email);
+
+    if (userPasswordRegistered?.length) {
+      const secret = await fetchSecret("coach_login");
+      logger.debug(secret, `data being received: [fetchSecret]`);
+
+      if (secret?.length) {
+        const passwordMatched = await verifyPassword(
+          email,
+          password,
+          secret[0]?.secretKey,
+          secret[0]?.iv,
+          userPasswordRegistered[0]?.password
+        );
+        logger.debug(passwordMatched, `data being received: [verifyPassword]`);
+        if (passwordMatched === true) {
+          const tokenPayload = {
+            userId: userPasswordRegistered[0].id,
+            ROLE: "COACH",
+            platform: "COACH_DASHBOARD",
+          };
+          const authToken = generateAuthTokenForCoachAccess(tokenPayload);
+          res.set("Authorization", authToken);
+          return sendApiResponse(res, null, 200);
+        } else {
+          throw "Invalid Credentials";
+        }
+      }
+      throw "Invalid Credentials";
+    }
+    throw "Invalid Credentials";
+  } catch (err) {
+    logger.error(err, "error while admin logging in [adminLoginController]");
+    return sendApiError(
+      res,
+      err ?? "Something went wrong! Please try again",
+      500
+    );
+  }
 };
