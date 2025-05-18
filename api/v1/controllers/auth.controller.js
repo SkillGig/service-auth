@@ -482,12 +482,14 @@ export const raiseStudentInfoRequest = async (req, res) => {
       studentId,
       orgId
     );
+    logger.debug(ongoingRequestCheck, `data being received: [raiseStudentInfoRequest/ongoingRequestCheck]`);
     if (ongoingRequestCheck.length) {
       return sendApiError(
         res,
         {
           notifyUser:
             "Already a request is in progress. Please wait until it to be closed.",
+          data: ongoingRequestCheck[0],
         },
         200
       );
@@ -519,7 +521,6 @@ export const raiseStudentInfoRequest = async (req, res) => {
     }
   } catch (err) {}
 };
-
 
 export const coachLoginController = async (req, res) => {
   const email = req.body.email;

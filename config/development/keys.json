@@ -4,7 +4,7 @@
   "accessTokenSecretForAdmin": "NDhiZmU3ZDhkN2U1N2NmMjI5MTQ5ZGNmODBjYTc0OTg=",
   "accessTokenSecretForCoach": "ZGY0MTQ4ZTZhZWNjNjBiNTVjN2Q3NjJmYzRkYjA3NmU=",
   "jwtExpirations": {
-    "accessTokenExpiresIn": "15m",
+    "accessTokenExpiresIn": "365d",
     "refreshTokenExpiresIn": "7d"
   },
   "adminJwtExpirations": {
