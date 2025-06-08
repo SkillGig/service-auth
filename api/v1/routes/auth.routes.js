@@ -41,7 +41,7 @@ router.get(
   validateRefreshTokenAndGenerateNewAuthToken
 );
 
-router.post("/raiseStudentInfoRequest", raiseStudentInfoRequest);
+router.post("/raise-student-info-request", raiseStudentInfoRequest);
 
 router.post("/resend-otp", loginRequestValidator, resendOtpController);
 

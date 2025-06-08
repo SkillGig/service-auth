@@ -222,6 +222,7 @@ export const findStudentWithOrgCodeAndStudentId = async (
     si.phone AS phone,
     si.student_id as studentId,
     si.gender as gender,
+    si.name as name,
     b.branch_code AS branchCode,
     b.branch_name AS branchName,
     o.id as organisationId,
@@ -433,10 +434,10 @@ export const fetchUserPassword = async (email) => {
   }
 };
 
-export const checkIfStudentHasAnOngoingRequest = async (studentId, orgId) => {
+export const checkIfStudentHasAnOngoingRequest = async (studentId, orgCode) => {
   logger.debug(
     studentId,
-    orgId,
+    orgCode,
     `data being received: [checkIfStudentHasAnOngoingRequest]`
   );
 
@@ -451,9 +452,9 @@ export const checkIfStudentHasAnOngoingRequest = async (studentId, orgId) => {
           INNER JOIN organizations o ON si.org_code = o.org_short_code
           INNER JOIN user_raised_request_details urrd ON ur.id = urrd.request_id
     WHERE si.student_id = ?
-    AND ur.org_id = ?
+    AND si.org_code = ?
     group by ur.id;`;
-    const result = await query(queryString, [studentId, orgId]);
+    const result = await query(queryString, [studentId, orgCode]);
     return result;
   } catch (err) {
     logger.error(
@@ -465,19 +466,15 @@ export const checkIfStudentHasAnOngoingRequest = async (studentId, orgId) => {
   }
 };
 
-export const generateNewUserRequest = async (studentId, orgId) => {
-  logger.debug(
-    studentId,
-    orgId,
-    `data being received: [generateNewUserRequest]`
-  );
+export const generateNewUserRequest = async (studentId) => {
+  logger.debug(studentId, `data being received: [generateNewUserRequest]`);
 
   try {
     const studentIdDetails = await fetchStudentIdUsingStudentOrgId(studentId);
     const queryString = `INSERT INTO user_requests (student_id, org_id) VALUES (?, ?);`;
     const result = await query(queryString, [
       studentIdDetails[0].studentId,
-      orgId,
+      studentIdDetails[0].orgId,
     ]);
     return result?.insertId ?? false;
   } catch (err) {
@@ -488,7 +485,7 @@ export const generateNewUserRequest = async (studentId, orgId) => {
 
 export const fetchStudentIdUsingStudentOrgId = async (studentId) => {
   try {
-    const queryString = `SELECT id AS studentId FROM student_info WHERE student_id = ?`;
+    const queryString = `SELECT si.id AS studentId, o.id AS orgId FROM student_info si INNER JOIN organizations o ON si.org_code = o.org_short_code WHERE student_id = ?;`;
     const result = await query(queryString, [studentId]);
     return result;
   } catch (err) {
@@ -540,6 +537,57 @@ export const fetchCoachPassword = async (email) => {
     return result;
   } catch (err) {
     logger.error(err, `error being received: [fetchCoachPassword]`);
+    return err;
+  }
+};
+
+export const fetchListOfBranchesUnderOrgUsingOrgShortCode = async (orgCode) => {
+  logger.debug(`OrgCode: ${orgCode} [fetchOrgIdUsingOrgCode]`);
+
+  const queryString = `SELECT ob.id as branchId, ob.branch_name as branchName
+  FROM organizations o
+          INNER JOIN org_branch_mapping obm ON o.id = obm.org_id
+          INNER JOIN org_branches ob ON obm.branch_id = ob.id
+  WHERE o.org_short_code = ?
+    AND obm.is_enabled = 1;`;
+  try {
+    const result = await query(queryString, [orgCode]);
+    return result;
+  } catch (err) {
+    logger.error(err, `Error fetching orgId  [fetchOrgIdUsingOrgCod]`);
+    throw err;
+  }
+};
+
+export const fetchUserEnrolledRoadmaps = async (userId) => {
+  logger.debug(userId, `data being received: [fetchUserEnrolledRoadmaps]`);
+
+  const queryString = `SELECT r.id as roadmapId, r.roadmap_name as roadmapName
+    FROM user_enrolled_roadmaps uer
+            INNER JOIN roadmaps r ON uer.roadmap_id = r.id
+    WHERE uer.user_id = ? and uer.is_enrolled = 1;`;
+  try {
+    const result = await query(queryString, [userId]);
+    return result;
+  } catch (err) {
+    logger.error(err, `error being received: [fetchUserEnrolledRoadmaps]`);
+    return err;
+  }
+};
+
+export const fetchAvailableRoadmapsForUser = async (userId) => {
+  logger.debug(userId, `data being received: [fetchAvailableRoadmapsForUser]`);
+
+  const queryString = `SELECT r.id as roadmapId, r.roadmap_name as roadmapName
+    FROM org_roadmap_mapping orm
+            INNER JOIN roadmaps r ON orm.roadmap_id = r.id
+            INNER JOIN users u ON orm.org_id = u.org_id
+    WHERE u.id = ? and orm.is_enabled = 1;`;
+  try {
+    const result = await query(queryString, [userId]);
+    return result;
+  } catch (err) {
+    logger.error(err, `error being received: [fetchAvailableRoadmapsForUser]`);
     return err;
   }
 };

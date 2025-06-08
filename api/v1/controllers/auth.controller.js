@@ -3,11 +3,14 @@ import {
   addRefreshToken,
   checkIfStudentHasAnOngoingRequest,
   checkIfUserAlreadyExists,
+  fetchAvailableRoadmapsForUser,
   fetchCoachPassword,
+  fetchListOfBranchesUnderOrgUsingOrgShortCode,
   fetchOrgIdUsingOrgCode,
   fetchSecret,
   fetchStudentDetails,
   fetchStudentInfo,
+  fetchUserEnrolledRoadmaps,
   fetchUserPassword,
   findOrgCode,
   findStudentWithOrgCodeAndStudentId,
@@ -131,11 +134,13 @@ export const loginController = async (req, res) => {
         userPhone,
         "login"
       );
+      const maskedPhone = `xxxxxxxx${String(userPhone).slice(-2)}`;
       logger.debug(otpResult, "the OTP is here");
       const userResponse = {
         notifyUser:
           "We have Successfully sent OTP to the registered mobile number!",
         otpId: otpResult?.otpId,
+        maskedPhone,
       };
       if (process.env.NODE_ENV === "development") {
         userResponse.generatedOtp = otpResult.generatedOtp;
@@ -155,11 +160,13 @@ export const loginController = async (req, res) => {
           phone,
           "register"
         );
+        const maskedPhone = `xxxxxxxx${String(phone).slice(-2)}`;
         logger.debug(otpResult, "the OTP is here");
         const userResponse = {
           notifyUser:
             "We have Successfully sent OTP to the registered mobile number!",
           otpId: otpResult?.otpId,
+          maskedPhone,
         };
         if (process.env.NODE_ENV === "development") {
           userResponse.generatedOtp = otpResult.generatedOtp;
@@ -201,7 +208,10 @@ export const registerNewUserController = async (req, res) => {
       studentId,
       studentDetails[0]?.orgId
     );
-    if (ongoingRequestCheck?.length) {
+    if (
+      ongoingRequestCheck?.length &&
+      ongoingRequestCheck[0]?.status === "pending"
+    ) {
       return sendApiError(
         res,
         {
@@ -232,6 +242,32 @@ export const registerNewUserController = async (req, res) => {
           role: "USER",
           platform,
         };
+        const isUserEnrolledToRoadmap = await fetchUserEnrolledRoadmaps(
+          userResult.userId
+        );
+
+        const availableRoadmaps = await fetchAvailableRoadmapsForUser(
+          userResult.userId
+        );
+        logger.debug(
+          isUserEnrolledToRoadmap,
+          `data being received: [verifyUserOtpController/isUserEnrolledToRoadmap]`
+        );
+
+        let data = { availableRoadmaps };
+        if (isUserEnrolledToRoadmap?.length) {
+          data = {
+            ...data,
+            isUserEnrolledToRoadmap: true,
+            enrolledRoadmaps: isUserEnrolledToRoadmap,
+          };
+        } else {
+          data = {
+            ...data,
+            isUserEnrolledToRoadmap: false,
+            enrolledRoadmaps: [],
+          };
+        }
         const authToken = generateAuthToken(tokenPayload);
         const refreshToken = generateRefreshToken(tokenPayload);
         await addRefreshToken(userResult.userId, refreshToken, platform);
@@ -241,6 +277,7 @@ export const registerNewUserController = async (req, res) => {
           res,
           {
             notifyUser: "Successfully registered!",
+            data,
           },
           200
         );
@@ -269,27 +306,52 @@ export const verifyUserOtpController = async (req, res) => {
     const userOtpResult = await validateOtp(otpId, otp, platform);
 
     if (userOtpResult?.length && userOtpResult[0].type === "login") {
+      const userId = userOtpResult[0].userId;
       const tokenPayload = {
-        userId: userOtpResult[0].userId,
+        userId,
         role: "USER",
         platform,
       };
+
+      const isUserEnrolledToRoadmap = await fetchUserEnrolledRoadmaps(userId);
+      const availableRoadmaps = await fetchAvailableRoadmapsForUser(userId);
+      logger.debug(
+        isUserEnrolledToRoadmap,
+        availableRoadmaps,
+        `data being received: [verifyUserOtpController/isUserEnrolledToRoadmap]`
+      );
+
+      let data = { availableRoadmaps };
+      if (isUserEnrolledToRoadmap?.length) {
+        data = {
+          ...data,
+          isUserEnrolledToRoadmap: true,
+          enrolledRoadmaps: isUserEnrolledToRoadmap,
+        };
+      } else {
+        data = {
+          ...data,
+          isUserEnrolledToRoadmap: false,
+          enrolledRoadmaps: [],
+        };
+      }
       const authToken = generateAuthToken(tokenPayload);
       const refreshToken = generateRefreshToken(tokenPayload);
       await addRefreshToken(userOtpResult[0].userId, refreshToken, platform);
       res.set("Authorization", authToken);
       res.set("x-refresh-token", refreshToken);
-      return sendApiResponse(res, null, 200);
+      return sendApiResponse(res, { data }, 200);
     } else if (userOtpResult?.length && userOtpResult[0].type === "register") {
       const studentResult = await findStudentWithOrgCodeAndStudentId(
         orgCode,
         studentId
       );
 
-      const orgDetails = await fetchOrgIdUsingOrgCode(orgCode);
+      const orgBranchDetails =
+        await fetchListOfBranchesUnderOrgUsingOrgShortCode(orgCode);
       const ongoingRequestDetails = await checkIfStudentHasAnOngoingRequest(
         studentId,
-        orgDetails[0]?.orgId
+        orgCode
       );
 
       if (studentResult?.length) {
@@ -297,6 +359,8 @@ export const verifyUserOtpController = async (req, res) => {
           isNewUser: true,
           studentDetails: studentResult[0],
           ongoingRequestDetails,
+          orgBranchDetails,
+          startDateLimits: [{}],
         });
       }
     }
@@ -473,16 +537,19 @@ export const adminLoginController = async (req, res) => {
 };
 
 export const raiseStudentInfoRequest = async (req, res) => {
-  const orgId = req.body.orgId;
+  const orgCode = req.body.orgCode;
   const studentId = req.body.studentId;
   const dataToUpdate = req.body.dataToUpdate;
 
   try {
     const ongoingRequestCheck = await checkIfStudentHasAnOngoingRequest(
       studentId,
-      orgId
+      orgCode
     );
-    logger.debug(ongoingRequestCheck, `data being received: [raiseStudentInfoRequest/ongoingRequestCheck]`);
+    logger.debug(
+      ongoingRequestCheck,
+      `data being received: [raiseStudentInfoRequest/ongoingRequestCheck]`
+    );
     if (ongoingRequestCheck.length) {
       return sendApiError(
         res,
@@ -494,7 +561,12 @@ export const raiseStudentInfoRequest = async (req, res) => {
         200
       );
     } else {
-      const newRequestId = await generateNewUserRequest(studentId, orgId);
+      const newRequestId = await generateNewUserRequest(studentId);
+      logger.debug(
+        newRequestId,
+        dataToUpdate,
+        `data being received: [generateNewUserRequest/result]`
+      );
       if (newRequestId) {
         await Promise.map(dataToUpdate, async (data) => {
           const { fieldName, oldValue, newValue } = data;
