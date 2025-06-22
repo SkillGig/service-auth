@@ -5,7 +5,7 @@
   "main": "app.js",
   "type": "module",
   "scripts": {
-    "start": "NODE_ENV=development nodemon app.js | bunyan"
+    "start": "cross-env NODE_ENV=development nodemon app.js | bunyan"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +23,7 @@
     "nconf": "^0.12.1"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "nodemon": "^3.1.9"
   }
 }
