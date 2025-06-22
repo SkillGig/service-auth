@@ -453,7 +453,9 @@ export const checkIfStudentHasAnOngoingRequest = async (studentId, orgCode) => {
           INNER JOIN user_raised_request_details urrd ON ur.id = urrd.request_id
     WHERE si.student_id = ?
     AND si.org_code = ?
-    group by ur.id;`;
+    group by ur.id
+    ORDER BY ur.created_at DESC
+    LIMIT 1;`;
     const result = await query(queryString, [studentId, orgCode]);
     return result;
   } catch (err) {
