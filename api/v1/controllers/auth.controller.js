@@ -550,7 +550,10 @@ export const raiseStudentInfoRequest = async (req, res) => {
       ongoingRequestCheck,
       `data being received: [raiseStudentInfoRequest/ongoingRequestCheck]`
     );
-    if (ongoingRequestCheck.length) {
+    if (
+      ongoingRequestCheck?.length &&
+      ongoingRequestCheck[0]?.status === "pending"
+    ) {
       return sendApiError(
         res,
         {
