@@ -20,6 +20,11 @@ import {
   retrieveRefreshTokenGeneratedForUserByPlatform,
   validateOtp,
 } from "../services/auth.query.js";
+import {
+  generateTempStudentToken,
+  createTempStudentTokensTable,
+} from "../services/temp-student-token.service.js";
+import { enhancedApiResponse } from "../helpers/response-header.helper.js";
 import logger from "../../../config/logger.js";
 import {
   generateAuthToken,
@@ -355,13 +360,48 @@ export const verifyUserOtpController = async (req, res) => {
       );
 
       if (studentResult?.length) {
-        return sendApiResponse(res, {
-          isNewUser: true,
-          studentDetails: studentResult[0],
-          ongoingRequestDetails,
-          orgBranchDetails,
-          startDateLimits: [{}],
-        });
+        // Step 4.1: Generate temp student token for non-registered students
+        try {
+          const tempTokenResult = await generateTempStudentToken(
+            orgCode,
+            studentId
+          );
+
+          // Step 4.1: Set x-temp-student-token header and include session data
+          const responseData = {
+            isNewUser: true,
+            studentDetails: studentResult[0],
+            ongoingRequestDetails,
+            orgBranchDetails,
+            startDateLimits: [{}],
+            // Include session data for restoration
+            sessionData: {
+              orgCode,
+              studentId,
+              tempToken: tempTokenResult.token,
+            },
+          };
+
+          const tokenData = {
+            type: "temp_student",
+            tempToken: tempTokenResult.token,
+          };
+
+          return enhancedApiResponse(res, responseData, 200, tokenData);
+        } catch (tokenError) {
+          logger.error(
+            tokenError,
+            "Error generating temp token, falling back to regular response"
+          );
+          // Fallback to existing behavior if token generation fails
+          return sendApiResponse(res, {
+            isNewUser: true,
+            studentDetails: studentResult[0],
+            ongoingRequestDetails,
+            orgBranchDetails,
+            startDateLimits: [{}],
+          });
+        }
       }
     }
     return sendApiError(res, "Invalid OTP!");
@@ -582,6 +622,7 @@ export const raiseStudentInfoRequest = async (req, res) => {
         });
         return sendApiResponse(res, {
           notifyUser: "You have successfully raised a request.",
+          newRequestId,
         });
       } else {
         return sendApiError(
