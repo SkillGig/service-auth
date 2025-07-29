@@ -52,7 +52,7 @@ app.listen(port, () => {
       process.exit(1);
     }
     logger.info(
-      `Auth Service connected to the database and server is up and running on PORT: ${port}`
+      `Auth Service connected to the database and server is up and running on PORT: ${port} in mode : ${process.env.NODE_ENV}`
     );
   });
 });
