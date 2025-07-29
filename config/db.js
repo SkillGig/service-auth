@@ -1,6 +1,8 @@
 import { createPool } from "mysql2";
 import { readFileToNconf } from "./index.js";
 
+const nconf = readFileToNconf();
+
 const dbConfig = {
   host: nconf.get("dbConfig:host"),
   user: nconf.get("dbConfig:user"),
