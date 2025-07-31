@@ -41,10 +41,13 @@ app.use("/auth/coach", CoachRoutes);
 app.use("/auth", AuthRoutes);
 
 app.use("/", (req, res) => {
+  logger.info(`Incoming request: ${req.method} ${req.path}`);
+  logger.info(`Full URL: ${req.url}`);
   res.json({
-    message: "Auth Services",
+    message: "Courses Services",
   });
 });
+
 app.listen(port, () => {
   pool.getConnection((err, connection) => {
     if (err) {
