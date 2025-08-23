@@ -445,6 +445,7 @@ export const checkIfStudentHasAnOngoingRequest = async (studentId, orgCode) => {
     const queryString = `SELECT ur.id     as requestId,
     ur.status as status,
     ur.created_at as requestCreatedAt,
+    ur.rejected_reason as rejectedReason,
     GROUP_CONCAT(JSON_OBJECT('fieldName', urrd.field_name, 'oldValue', urrd.old_value, 'newValue', urrd.new_value,
                              'fieldStatus', urrd.status)) as diffDetails
     FROM user_requests ur

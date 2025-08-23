@@ -76,6 +76,7 @@ export const checkStudentStatusController = async (req, res) => {
         ongoingRequestDetails && ongoingRequestDetails.length > 0
           ? ongoingRequestDetails[0].status
           : "no_requests",
+      rejectedReason: ongoingRequestDetails?.[0].rejectedReason || null,
       fieldStatuses,
       studentDetails: studentDetails[0], // Use the first result as it should be unique
       orgBranchDetails,
