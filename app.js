@@ -44,10 +44,13 @@ app.use("/auth/coach", CoachRoutes);
 app.use("/auth", AuthRoutes);
 
 app.use("/", (req, res) => {
+  logger.info(`Incoming request: ${req.method} ${req.path}`);
+  logger.info(`Full URL: ${req.url}`);
   res.json({
-    message: "Auth Services",
+    message: "Courses Services",
   });
 });
+
 app.listen(port, () => {
   pool.getConnection((err, connection) => {
     if (err) {
@@ -55,7 +58,7 @@ app.listen(port, () => {
       process.exit(1);
     }
     logger.info(
-      `Auth Service connected to the database and server is up and running on PORT: ${port}`
+      `Auth Service connected to the database and server is up and running on PORT: ${port} in mode : ${process.env.NODE_ENV}`
     );
   });
 });
