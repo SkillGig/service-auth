@@ -1,0 +1,6 @@
+This is a test file to verify GitHub configuration.
+Created by: Gagan-Vasanth
+Date: $(date)
+Purpose: Testing personal GitHub account setup
+
+This file can be safely deleted after testing.
