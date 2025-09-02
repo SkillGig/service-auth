@@ -61,3 +61,17 @@ export const authTokenGeneratorValidator = [
     .isIn(["android", "ios", "web"])
     .withMessage("Provide a valid platform"),
 ];
+
+export const checkStudentStatusValidator = [
+  query("orgCode")
+    .notEmpty()
+    .withMessage("orgCode is required")
+    .isLength({ min: 2, max: 50 })
+    .withMessage("orgCode must be between 2 and 50 characters"),
+  query("studentId")
+    .notEmpty()
+    .withMessage("studentId is required")
+    .isLength({ min: 1, max: 50 })
+    .withMessage("studentId must be between 1 and 50 characters"),
+  (req, res, next) => validatorCallback(req, res, next),
+];

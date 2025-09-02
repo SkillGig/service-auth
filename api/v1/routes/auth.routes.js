@@ -10,11 +10,13 @@ import {
   verifyOrgCodeController,
   verifyUserOtpController,
 } from "../controllers/auth.controller.js";
+import { checkStudentStatusController } from "../controllers/student-status.controller.js";
 import {
   authTokenGeneratorValidator,
   loginRequestValidator,
   validateOTPRequest,
   verifyOrgCodeValidator,
+  checkStudentStatusValidator,
 } from "../validators/auth.validator.js";
 
 // router.get(
@@ -42,7 +44,14 @@ router.get(
 );
 
 router.post("/raise-student-info-request", raiseStudentInfoRequest);
-
+ 
 router.post("/resend-otp", loginRequestValidator, resendOtpController);
+
+// Step 5.1: Create student status check endpoint
+router.get(
+  "/check-student-status",
+  checkStudentStatusValidator,
+  checkStudentStatusController
+);
 
 export default router;

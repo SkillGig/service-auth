@@ -17,10 +17,13 @@ app.use((req, res, next) => {
   // CORS headers
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Expose-Headers", "Authorization");
+  res.header(
+    "Access-Control-Expose-Headers",
+    "Authorization, x-temp-student-token"
+  );
   res.header(
     "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization, platform, x-refresh-token"
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization, platform, x-refresh-token, x-temp-student-token"
   );
 
   // Cache control headers
